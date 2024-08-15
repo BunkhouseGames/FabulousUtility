@@ -22,6 +22,10 @@ void UFuViewportWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Subsyst
 		return;
 	}
 
+#ifdef BUNKHOUSE_GAMES
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &ThisClass::OnPostLoadMapWithWorld);
+#endif // BUNKHOUSE_GAMES
+
 	if (IsValid(GetGameInstance()->GetGameViewportClient()))
 	{
 		GameViewport_OnViewportCreated();
@@ -39,15 +43,36 @@ void UFuViewportWatermarkSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UFuViewportWatermarkSubsystem::GameViewport_OnViewportCreated() const
+void UFuViewportWatermarkSubsystem::GameViewport_OnViewportCreated()
 {
 	auto* Viewport{GetGameInstance()->GetGameViewportClient()};
 	if (IsValid(Viewport))
 	{
 		UGameViewportClient::OnViewportCreated().RemoveAll(this);
 
+#ifdef BUNKHOUSE_GAMES		
+		if (ViewportWatermark.IsValid())
+		{
+			Viewport->RemoveViewportWidgetContent(ViewportWatermark.ToSharedRef());
+			ViewportWatermark.Reset();
+		}
+		ViewportWatermark = SNew(SFuViewportWatermark);
+		Viewport->AddViewportWidgetContent(ViewportWatermark.ToSharedRef(), GetDefault<UFuViewportWatermarkSettings>()->ZOrder);
+#else // BUNKHOUSE_GAMES
 		Viewport->AddViewportWidgetContent(SNew(SFuViewportWatermark), GetDefault<UFuViewportWatermarkSettings>()->ZOrder);
+#endif // BUNKHOUSE_GAMES
 	}
 }
+
+#ifdef BUNKHOUSE_GAMES
+void UFuViewportWatermarkSubsystem::OnPostLoadMapWithWorld(UWorld* World)
+{
+	if (IsValid(World))
+	{
+		GameViewport_OnViewportCreated();
+		
+	}
+}
+#endif // BUNKHOUSE_GAMES
 
 #endif

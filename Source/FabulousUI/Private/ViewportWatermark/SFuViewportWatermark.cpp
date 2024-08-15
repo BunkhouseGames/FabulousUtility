@@ -6,6 +6,12 @@
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/Text/STextBlock.h"
 
+#ifdef BUNKHOUSE_GAMES
+#include "Misc/App.h"
+#include "Misc/Paths.h"
+#include "Engine/World.h"
+#endif
+
 SFuViewportWatermark::SFuViewportWatermark()
 {
 	bCanSupportFocus = false;
@@ -37,19 +43,42 @@ void SFuViewportWatermark::Construct(const FArguments& Arguments)
 
 	if (ViewportWatermarkSettings->bShowCopyright)
 	{
+
+#ifdef BUNKHOUSE_GAMES
+		// Fetch timestamp from executable
+		const TCHAR* ProjectName = FApp::GetProjectName();
+		const TCHAR* Executable = FPlatformProcess::ExecutablePath();
+		auto DateTime = FPlatformFileManager::Get().GetPlatformFile().GetTimeStamp(Executable);
+		auto DateTimeText = DateTime.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
+		FString Where = TEXT("(Unknown)");
+		if (GWorld)
+		{
+			Where = FString::Printf(TEXT("%s - %s"), *GWorld->GetAddressURL(), *GWorld->GetMapName());
+		}
+		// Example: Bunkhouse Games - Dolly [2023-12-19 22:37:31] 222.5.5.5:7777 - Map_Dolly_00
+		// ProjectName:		Dolly
+		// DateTimeText:	2023-12-19 22:37:31
+		// Where:			:17777 - Map_Dolly_00
+		auto WatermarkText = FString::Printf(TEXT("Bunkhouse Games - %s [%s] %s"), ProjectName, *DateTimeText, *Where);
+#endif
+
 		Overlay->AddSlot()
 		       .HAlign(ViewportWatermarkSettings->CopyrightSettings.HorizontalAlignment)
 		       .VAlign(ViewportWatermarkSettings->CopyrightSettings.VerticalAlignment)
 		       .Padding(ViewportWatermarkSettings->CopyrightSettings.Padding)
 		[
 			SNew(STextBlock)
+#ifdef BUNKHOUSE_GAMES
+			.Text(FText::FromString(WatermarkText))
+#else // BUNKHOUSE_GAMES
 			.Text(ViewportWatermarkSettings->bAddEngineVersionToCopyright
 				      ? FText::Format(FText::AsCultureInvariant(FString{TEXTVIEW("{0}") LINE_TERMINATOR TEXTVIEW("{1}")}), {
 					                      {ViewportWatermarkSettings->CopyrightText},
 					                      {ViewportWatermarkSettings->EngineVersionText}
 				                      })
 				      : ViewportWatermarkSettings->CopyrightText)
-			.Font(ViewportWatermarkSettings->CopyrightSettings.Font)
+#endif // BUNKHOUSE_GAMES
+				.Font(ViewportWatermarkSettings->CopyrightSettings.Font)
 			.ColorAndOpacity(ViewportWatermarkSettings->CopyrightSettings.ColorAndOpacity)
 			.ShadowOffset(ViewportWatermarkSettings->CopyrightSettings.ShadowOffset)
 			.ShadowColorAndOpacity(ViewportWatermarkSettings->CopyrightSettings.ShadowColorAndOpacity)

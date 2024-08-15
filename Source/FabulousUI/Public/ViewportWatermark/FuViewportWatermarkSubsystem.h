@@ -18,5 +18,12 @@ public:
 
 private:
 	void GameViewport_OnViewportCreated() const;
+
+#ifdef BUNKHOUSE_GAMES
+	TSharedPtr<class SFuViewportWatermark> ViewportWatermark;
+	void GameViewport_OnViewportCreated();
+	void OnPostLoadMapWithWorld(UWorld* World);
+#endif // BUNKHOUSE_GAMES
+
 #endif
 };
