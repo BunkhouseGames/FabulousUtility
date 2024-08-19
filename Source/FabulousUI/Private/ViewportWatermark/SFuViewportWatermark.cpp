@@ -1,5 +1,6 @@
 #include "ViewportWatermark/SFuViewportWatermark.h"
 
+#include "FuProjectSettingsUtility.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "ViewportWatermark/FuViewportWatermarkSettings.h"
 #include "Widgets/SOverlay.h"
@@ -47,9 +48,7 @@ void SFuViewportWatermark::Construct(const FArguments& Arguments)
 #ifdef BUNKHOUSE_GAMES
 		// Fetch timestamp from executable
 		const TCHAR* ProjectName = FApp::GetProjectName();
-		const TCHAR* Executable = FPlatformProcess::ExecutablePath();
-		auto DateTime = FPlatformFileManager::Get().GetPlatformFile().GetTimeStamp(Executable);
-		auto DateTimeText = DateTime.ToString(TEXT("%Y-%m-%d %H:%M:%S"));
+		const auto ProjectVersion = UFuProjectSettingsUtility::GetProjectVersion();
 		FString Where = TEXT("(Unknown)");
 		if (GWorld)
 		{
@@ -57,9 +56,9 @@ void SFuViewportWatermark::Construct(const FArguments& Arguments)
 		}
 		// Example: Bunkhouse Games - Dolly [2023-12-19 22:37:31] 222.5.5.5:7777 - Map_Dolly_00
 		// ProjectName:		Dolly
-		// DateTimeText:	2023-12-19 22:37:31
+		// DateTimeText:	1.0.0-ff86b3-2023-12-19 22:37:31
 		// Where:			:17777 - Map_Dolly_00
-		auto WatermarkText = FString::Printf(TEXT("Bunkhouse Games - %s [%s] %s"), ProjectName, *DateTimeText, *Where);
+		auto WatermarkText = FString::Printf(TEXT("Bunkhouse Games - %s [%s] %s"), ProjectName, *ProjectVersion, *Where);
 #endif
 
 		Overlay->AddSlot()
