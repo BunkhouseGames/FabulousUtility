@@ -22,13 +22,13 @@ int32 UFuArrayUtility::GetWeightedRandomIndex(const TArray<float>& Array)
 	const auto RandomWeight{FMath::FRand() * TotalWeight};
 	auto ActualWeight{0.0f};
 
-	for (auto i{0}; i < Array.Num(); i++)
+	for (const auto Weight : EnumerateRange(Array))
 	{
-		ActualWeight += Array[i];
+		ActualWeight += *Weight;
 
 		if (RandomWeight <= ActualWeight)
 		{
-			return i;
+			return Weight.GetIndex();
 		}
 	}
 
@@ -55,48 +55,6 @@ void UFuArrayUtility::SortByPredicateActor(TArray<AActor*>& Actors, const FFuSor
 			return Predicate.Execute(&A, &B);
 		});
 	}
-}
-
-DEFINE_FUNCTION(UFuArrayUtility::execIsEmpty)
-{
-	Stack.MostRecentProperty = nullptr;
-	Stack.StepCompiledIn<FArrayProperty>(nullptr);
-
-	void* ArrayAddress{Stack.MostRecentPropertyAddress};
-	const auto* ArrayProperty{CastField<FArrayProperty>(Stack.MostRecentProperty)};
-
-	if (ArrayProperty == nullptr)
-	{
-		Stack.bArrayContextFailed = true;
-		return;
-	}
-
-	P_FINISH
-
-	P_NATIVE_BEGIN
-		*static_cast<bool*>(RESULT_PARAM) = IsEmpty(ArrayAddress, ArrayProperty);
-	P_NATIVE_END
-}
-
-DEFINE_FUNCTION(UFuArrayUtility::execIsNotEmpty)
-{
-	Stack.MostRecentProperty = nullptr;
-	Stack.StepCompiledIn<FArrayProperty>(nullptr);
-
-	void* ArrayAddress{Stack.MostRecentPropertyAddress};
-	const auto* ArrayProperty{CastField<FArrayProperty>(Stack.MostRecentProperty)};
-
-	if (ArrayProperty == nullptr)
-	{
-		Stack.bArrayContextFailed = true;
-		return;
-	}
-
-	P_FINISH
-
-	P_NATIVE_BEGIN
-		*static_cast<bool*>(RESULT_PARAM) = !IsEmpty(ArrayAddress, ArrayProperty);
-	P_NATIVE_END
 }
 
 DEFINE_FUNCTION(UFuArrayUtility::execIsEmptyExpanded)
@@ -151,48 +109,6 @@ bool UFuArrayUtility::IsEmpty(void* Array, const FArrayProperty* Property)
 	const FScriptArrayHelper ArrayHelper{Property, Array};
 
 	return ArrayHelper.Num() <= 0;
-}
-
-DEFINE_FUNCTION(UFuArrayUtility::execShuffle)
-{
-	Stack.MostRecentProperty = nullptr;
-	Stack.StepCompiledIn<FArrayProperty>(nullptr);
-
-	void* ArrayAddress{Stack.MostRecentPropertyAddress};
-	const auto* ArrayProperty{CastField<FArrayProperty>(Stack.MostRecentProperty)};
-
-	if (ArrayProperty == nullptr)
-	{
-		Stack.bArrayContextFailed = true;
-		return;
-	}
-
-	P_FINISH
-
-	P_NATIVE_BEGIN
-		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty)
-		Shuffle(ArrayAddress, ArrayProperty);
-	P_NATIVE_END
-}
-
-void UFuArrayUtility::Shuffle(void* Array, const FArrayProperty* Property)
-{
-	if (Array == nullptr)
-	{
-		return;
-	}
-
-	FScriptArrayHelper ArrayHelper{Property, Array};
-	const auto LastIndex{ArrayHelper.Num() - 1};
-
-	for (auto i{0}; i <= LastIndex; i++)
-	{
-		const auto NewIndex{FMath::RandRange(i, LastIndex)};
-		if (i != NewIndex)
-		{
-			ArrayHelper.SwapValues(i, NewIndex);
-		}
-	}
 }
 
 DEFINE_FUNCTION(UFuArrayUtility::execShuffleFirstElements)

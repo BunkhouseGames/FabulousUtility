@@ -1,8 +1,8 @@
 #pragma once
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "FuMacros.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "FuAbilityUtility.generated.h"
 
 UCLASS()
@@ -13,10 +13,6 @@ class FABULOUSABILITYSYSTEM_API UFuAbilityUtility : public UBlueprintFunctionLib
 public:
 	UFUNCTION(BlueprintPure, Category = "Fabulous Ability System|Ability Utility", Meta = (ReturnDisplayName = "Cooldown Tags"))
 	static const FGameplayTagContainer& GetCooldownTags(TSubclassOf<UGameplayAbility> AbilityClass);
-
-	UFUNCTION(BlueprintPure, Category = "Fabulous Ability System|Ability Utility",
-		Meta = (DefaultToSelf = "Ability", ReturnDisplayName = "Value"))
-	static bool IsActive(const UGameplayAbility* Ability);
 
 	UFUNCTION(BlueprintCallable, Category = "Fabulous Ability System|Ability Utility",
 		DisplayName = "Is Active (Expanded)", Meta = (DefaultToSelf = "Ability", ExpandBoolAsExecs = "ReturnValue"))
@@ -39,8 +35,8 @@ public:
 	static bool IsInputPressedExpanded(const UGameplayAbility* Ability);
 
 	UFUNCTION(BlueprintPure, Category = "Fabulous Ability System|Ability Utility",
-		Meta = (DefaultToSelf = "Ability", AutoCreateRefTerm = "ParentTag", ReturnDisplayName = "Descendant Tag"))
-	static FGameplayTag FindFirstDescendantAbilityTag(const UGameplayAbility* Ability, const FGameplayTag& ParentTag);
+		Meta = (DefaultToSelf = "Ability", AutoCreateRefTerm = "Tag", ReturnDisplayName = "Descendant Tag"))
+	static FGameplayTag FindFirstDescendantAbilityTag(const UGameplayAbility* Ability, const FGameplayTag& Tag);
 
 	UFUNCTION(BlueprintPure, Category = "Fabulous Ability System|Ability Utility",
 		Meta = (AutoCreateRefTerm = "Tag", ReturnDisplayName = "Value"))
@@ -53,9 +49,9 @@ public:
 	                                     TSubclassOf<UObject> SourceObjectClass, UObject*& SourceObject);
 
 	UFUNCTION(BlueprintPure, Category = "Fabulous Ability System|Ability Utility",
-		Meta = (AutoCreateRefTerm = "ParentTag", ReturnDisplayName = "Descendant Tag"))
+		Meta = (AutoCreateRefTerm = "Tag", ReturnDisplayName = "Descendant Tag"))
 	static FGameplayTag FindFirstDescendantAbilityTagByHandle(const UAbilitySystemComponent* AbilitySystem,
-	                                                          FGameplayAbilitySpecHandle AbilityHandle, const FGameplayTag& ParentTag);
+	                                                          FGameplayAbilitySpecHandle AbilityHandle, const FGameplayTag& Tag);
 
 	UFUNCTION(BlueprintPure, Category = "Fabulous Ability System|Ability Utility",
 		Meta = (DefaultToSelf = "Ability", ReturnDisplayName = "Effect Handle"))
@@ -147,14 +143,9 @@ inline const FGameplayTagContainer& UFuAbilityUtility::GetCooldownTags(const TSu
 	return Tags != nullptr ? *Tags : None;
 }
 
-inline bool UFuAbilityUtility::IsActive(const UGameplayAbility* Ability)
-{
-	return FU_ENSURE(IsValid(Ability)) && Ability->IsActive();
-}
-
 inline bool UFuAbilityUtility::IsActiveExpanded(const UGameplayAbility* Ability)
 {
-	return IsActive(Ability);
+	return UAbilitySystemBlueprintLibrary::IsGameplayAbilityActive(Ability);
 }
 
 inline FGameplayAbilitySpecHandle UFuAbilityUtility::GetAbilityHandle(const UGameplayAbility* Ability)

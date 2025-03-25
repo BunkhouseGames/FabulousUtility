@@ -3,14 +3,14 @@
 #include "CoreGlobals.h"
 #include "Async/UniqueLock.h"
 #include "Async/WordMutex.h"
+#include "Containers/StaticArray.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Templates/Function.h"
 
 #if DO_ENSURE && !USING_CODE_ANALYSIS
 
-bool UE_DEBUG_SECTION FuEnsure::Execute(std::atomic<bool>& bExecuted, const bool bEnsureAlways,
-                                        const ANSICHAR* Expression, const TCHAR* StaticMessage, const TCHAR* Format, ...)
+bool UE_COLD UE_DEBUG_SECTION FuEnsure::Execute(std::atomic<bool>& bExecuted, const FFuEnsureInfo& EnsureInfo, const TCHAR* Format, ...)
 {
 	static const auto* EnsureAlwaysEnabledConsoleVariable{
 		IConsoleManager::Get().FindConsoleVariable(TEXT("core.EnsureAlwaysEnabled"))
@@ -18,27 +18,27 @@ bool UE_DEBUG_SECTION FuEnsure::Execute(std::atomic<bool>& bExecuted, const bool
 	check(EnsureAlwaysEnabledConsoleVariable != nullptr)
 
 	if ((bExecuted.load(std::memory_order_relaxed) &&
-	     (!bEnsureAlways || !EnsureAlwaysEnabledConsoleVariable->GetBool())) ||
+	     (!EnsureInfo.bEnsureAlways || !EnsureAlwaysEnabledConsoleVariable->GetBool())) ||
 	    !FPlatformMisc::IsEnsureAllowed())
 	{
 		return false;
 	}
 
-	if (bExecuted.exchange(true, std::memory_order_release) && !bEnsureAlways)
+	if (bExecuted.exchange(true, std::memory_order_release) && !EnsureInfo.bEnsureAlways)
 	{
 		return false;
 	}
 
 	static UE::FWordMutex FormatMutex;
-	static constexpr auto FormattedMessageSize{65535};
-	static TCHAR FormattedMessage[FormattedMessageSize];
+	static constexpr auto MessageSize{65535};
+	static TStaticArray<TCHAR, MessageSize> Message;
 
 	// ReSharper disable once CppLocalVariableWithNonTrivialDtorIsNeverUsed
 	UE::TUniqueLock Lock{FormatMutex};
 
-	GET_TYPED_VARARGS(TCHAR, FormattedMessage, FormattedMessageSize, FormattedMessageSize - 1, Format, Format);
+	GET_TYPED_VARARGS(TCHAR, Message.GetData(), MessageSize, FormattedMessageSize - 1, Format, Format);
 
-	if (UNLIKELY(GetEnsureHandler() && GetEnsureHandler()({Expression, FormattedMessage})))
+	if (UNLIKELY(GetEnsureHandler() && GetEnsureHandler()({EnsureInfo.Expression, Message.GetData()})))
 	{
 		return false;
 	}
@@ -53,13 +53,17 @@ bool UE_DEBUG_SECTION FuEnsure::Execute(std::atomic<bool>& bExecuted, const bool
 #if !NO_LOGGING
 		if (EnsuresAreErrorsConsoleVariable->GetBool())
 		{
-			UE_LOG(LogOutputDevice, Error, TEXT("%s"), StaticMessage);
-			UE_LOG(LogOutputDevice, Error, TEXT("%s"), FormattedMessage);
+			UE_LOG(LogOutputDevice, Error, TEXT("Ensure failed: %hs, File: %hs, Line: %d."),
+			       EnsureInfo.Expression, EnsureInfo.FilePath, EnsureInfo.LineNumber);
+
+			UE_LOG(LogOutputDevice, Error, TEXT("%s"), Message.GetData());
 		}
 		else
 		{
-			UE_LOG(LogOutputDevice, Warning, TEXT("%s"), StaticMessage);
-			UE_LOG(LogOutputDevice, Warning, TEXT("%s"), FormattedMessage);
+			UE_LOG(LogOutputDevice, Error, TEXT("Ensure failed: %hs, File: %hs, Line: %d."),
+			       EnsureInfo.Expression, EnsureInfo.FilePath, EnsureInfo.LineNumber);
+
+			UE_LOG(LogOutputDevice, Warning, TEXT("%s"), Message.GetData());
 		}
 #endif
 

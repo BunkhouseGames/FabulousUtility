@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/EnumerateRange.h"
 #include "FuArrayUtility.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE_RetVal_TwoParams(bool, FFuSortByPredicatObjectDelegate, const UObject*, A, const UObject*, B);
@@ -34,18 +35,6 @@ public:
 	// Internal blueprint-only functions.
 
 private:
-	UFUNCTION(BlueprintPure, Category = "Fabulous Utility|Array Utility",
-		CustomThunk, Meta = (ArrayParm = "Array", ReturnDisplayName = "Value"))
-	static bool IsEmpty(const TArray<UObject*>& Array);
-
-	DECLARE_FUNCTION(execIsEmpty);
-
-	UFUNCTION(BlueprintPure, Category = "Fabulous Utility|Array Utility",
-		CustomThunk, Meta = (ArrayParm = "Array", ReturnDisplayName = "Value"))
-	static bool IsNotEmpty(const TArray<UObject*>& Array);
-
-	DECLARE_FUNCTION(execIsNotEmpty);
-
 	UFUNCTION(BlueprintCallable, Category = "Fabulous Utility|Array Utility", CustomThunk,
 		DisplayName = "Is Empty (Expanded)", Meta = (ArrayParm = "Array", ExpandBoolAsExecs = "ReturnValue"))
 	static bool IsEmptyExpanded(const TArray<UObject*>& Array);
@@ -59,13 +48,6 @@ private:
 	DECLARE_FUNCTION(execIsNotEmptyExpanded);
 
 	static bool IsEmpty(void* Array, const FArrayProperty* Property);
-
-	UFUNCTION(BlueprintCallable, Category = "Fabulous Utility|Array Utility", CustomThunk, Meta = (ArrayParm = "Array"))
-	static void Shuffle(UPARAM(ref) TArray<int32>& Array);
-
-	DECLARE_FUNCTION(execShuffle);
-
-	static void Shuffle(void* Array, const FArrayProperty* Property);
 
 	UFUNCTION(BlueprintCallable, Category = "Fabulous Utility|Array Utility", CustomThunk, Meta = (ArrayParm = "Array"))
 	static void ShuffleFirstElements(UPARAM(ref) TArray<int32>& Array, int32 FirstElementsCount);
@@ -124,29 +106,17 @@ int32 UFuArrayUtility::GetWeightedRandomIndexByPredicate(const TArray<ValueType>
 	const auto RandomWeight{FMath::FRand() * TotalWeight};
 	auto ActualWeight{0.0f};
 
-	for (auto i{0}; i < Array.Num(); i++)
+	for (const auto Weight : EnumerateRange(Array))
 	{
-		ActualWeight += Invoke(WeightPredicate, Array[i]);
+		ActualWeight += Invoke(WeightPredicate, *Weight);
 
 		if (RandomWeight <= ActualWeight)
 		{
-			return i;
+			return Weight.GetIndex();
 		}
 	}
 
 	return -1;
-}
-
-inline bool UFuArrayUtility::IsEmpty(const TArray<UObject*>& Array)
-{
-	checkNoEntry()
-	return true;
-}
-
-inline bool UFuArrayUtility::IsNotEmpty(const TArray<UObject*>& Array)
-{
-	checkNoEntry()
-	return true;
 }
 
 inline bool UFuArrayUtility::IsEmptyExpanded(const TArray<UObject*>& Array)
@@ -159,11 +129,6 @@ inline bool UFuArrayUtility::IsNotEmptyExpanded(const TArray<UObject*>& Array)
 {
 	checkNoEntry()
 	return true;
-}
-
-inline void UFuArrayUtility::Shuffle(TArray<int32>& Array)
-{
-	checkNoEntry()
 }
 
 inline void UFuArrayUtility::ShuffleFirstElements(TArray<int32>& Array, const int32 FirstElementsCount)

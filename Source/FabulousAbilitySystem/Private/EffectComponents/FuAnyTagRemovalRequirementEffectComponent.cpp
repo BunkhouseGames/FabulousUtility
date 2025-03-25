@@ -2,8 +2,22 @@
 
 #include "AbilitySystemComponent.h"
 #include "FuMacros.h"
+#include "Misc/EnumerateRange.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FuAnyTagRemovalRequirementEffectComponent)
+
+namespace FuAnyTagRemovalRequirementEffectComponentUtility
+{
+	const auto* AllowPredictiveEffectsConsoleVariable{
+		IConsoleManager::Get().FindConsoleVariable(TEXT("AbilitySystem.Fix.AllowPredictiveGEFlags"))
+	};
+
+	bool IsPredictiveRemovalByTagRequirementsAllowed()
+	{
+		return AllowPredictiveEffectsConsoleVariable != nullptr &&
+		       (AllowPredictiveEffectsConsoleVariable->GetInt() & 2) > 0;
+	}
+}
 
 UFuAnyTagRemovalRequirementEffectComponent::UFuAnyTagRemovalRequirementEffectComponent()
 {
@@ -34,13 +48,17 @@ void UFuAnyTagRemovalRequirementEffectComponent::PostEditChangeProperty(FPropert
 bool UFuAnyTagRemovalRequirementEffectComponent::CanGameplayEffectApply(const FActiveGameplayEffectsContainer& ActiveEffects,
                                                                         const FGameplayEffectSpec& EffectSpecification) const
 {
-	return !ActiveEffects.Owner->HasAnyMatchingGameplayTags(RemovalRequirementTags.CombinedTags);
+	return (ActiveEffects.IsNetAuthority() ||
+	        FuAnyTagRemovalRequirementEffectComponentUtility::IsPredictiveRemovalByTagRequirementsAllowed()) &&
+	       !ActiveEffects.Owner->HasAnyMatchingGameplayTags(RemovalRequirementTags.CombinedTags);
 }
 
 bool UFuAnyTagRemovalRequirementEffectComponent::OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& ActiveEffects,
                                                                              FActiveGameplayEffect& ActiveEffect) const
 {
-	if (RemovalRequirementTags.CombinedTags.IsEmpty())
+	if (RemovalRequirementTags.CombinedTags.IsEmpty() ||
+	    (!ActiveEffects.IsNetAuthority() &&
+	     !FuAnyTagRemovalRequirementEffectComponentUtility::IsPredictiveRemovalByTagRequirementsAllowed()))
 	{
 		return true;
 	}
@@ -94,9 +112,9 @@ void UFuAnyTagRemovalRequirementEffectComponent::Effect_OnRemoved(const FGamepla
                                                                   UAbilitySystemComponent* AbilitySystem,
                                                                   TArray<FDelegateHandle> TagChangedDelegateHandles) const
 {
-	for (auto i{0}; i < TagChangedDelegateHandles.Num(); i++)
+	for (const auto DelegateHandle : EnumerateRange(TagChangedDelegateHandles))
 	{
-		FU_ENSURE(AbilitySystem->UnregisterGameplayTagEvent(TagChangedDelegateHandles[i],
-			RemovalRequirementTags.CombinedTags.GetGameplayTagArray()[i], EGameplayTagEventType::NewOrRemoved));
+		FU_ENSURE(AbilitySystem->UnregisterGameplayTagEvent(*DelegateHandle,
+			RemovalRequirementTags.CombinedTags.GetGameplayTagArray()[DelegateHandle.GetIndex()], EGameplayTagEventType::NewOrRemoved));
 	}
 }
